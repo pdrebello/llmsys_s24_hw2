@@ -15,6 +15,9 @@ import minitorch
 from minitorch import DecoderLM
 from minitorch.cuda_kernel_ops import CudaKernelOps
 
+import os
+os.environ["http_proxy"] = "http://proxy.cmu.edu:3128"
+os.environ["https_proxy"] = "http://proxy.cmu.edu:3128"
 
 def get_dataset(dataset_name, model_max_length):
     """
@@ -111,6 +114,10 @@ def collate_batch(
     """
     token_ids, tgt_token_mask = [], []
     pad_token_id = tokenizer.vocab['<pad>']
+    example_token_ids=[]
+    example_labels=[]
+    example_label_token_weights=[]
+    
     for example in examples:
         # token_ids_src = <de_token_ids> + <de_eos_id>
         token_ids_src = tokenizer(
@@ -121,21 +128,53 @@ def collate_batch(
 
         # BEGIN ASSIGN2_2
         # TODO
+        
+        token_ids = token_ids_src + token_ids_tgt 
+        #if(len(token_ids) > model_max_length):
+        #    import pdb
+        #    pdb.set_trace()
+        token_ids = token_ids[:model_max_length]
+        #if(len(token_ids) > model_max_length):
+        #    import pdb
+        #    pdb.set_trace()
+        token_ids += ([pad_token_id]*max(0, model_max_length - len(token_ids)))
+        labels = token_ids[1:] + [pad_token_id]
+        label_token_weights = [1]*(len(labels))
+        #print(len(token_ids))
+        #print(len(labels))
+        #print(len(token_ids_src))
+        #print("")
+        for i in range(min(40,len(token_ids_src)-1)):
+            try:
+                label_token_weights[i] = 0
+            except:
+                import pdb
+                pdb.set_trace()
         # create token_ids, labels, and label_token_weights for every example
         # hint: based on token_ids_src, token_ids_tgt, and pad_token_id
-        raise NotImplementedError("Collate Function Not Implemented Yet")
+        #raise NotImplementedError("Collate Function Not Implemented Yet")
         # END ASSIGN2_2
-
+        example_token_ids.append(token_ids)
+        example_labels.append(labels)
+        example_label_token_weights.append(label_token_weights)
+        #import pdb
+        #pdb.set_trace()
     # BEGIN ASSIGN2_2
     # TODO
     # organzie token_ids, labels, and label_token_weights for this batch based
     # on their example-wise results above, and return a python dict with them.from
-    raise NotImplementedError("Collate Function Not Implemented Yet")
+    #raise NotImplementedError("Collate Function Not Implemented Yet")
+    
+    #return {
+    #    'input_ids': minitorch.zeros((len(examples), model_max_length)),
+    #    'labels': minitorch.zeros((len(examples), model_max_length)),
+    #    'label_token_weights': minitorch.zeros((len(examples), model_max_length))
+    #}
 
     return {
-        'input_ids': minitorch.zeros((len(examples), model_max_length)),
-        'labels': minitorch.zeros((len(examples), model_max_length)),
-        'label_token_weights': minitorch.zeros((len(examples), model_max_length))
+        'input_ids': minitorch.tensor(example_token_ids, backend=backend),
+        'labels': minitorch.tensor(example_labels, backend=backend),
+        'label_token_weights': minitorch.tensor(example_label_token_weights, backend=backend)
     }
     # END ASSIGN2_2
 
@@ -154,7 +193,6 @@ def loss_fn(batch, model):
 
     idx = batch['input_ids']
     idx.requires_grad_(True)
-    
     logits = model(idx=idx)
     batch_size, seq_len, vocab_size = logits.shape
     
@@ -162,7 +200,11 @@ def loss_fn(batch, model):
     # TODO
     # compute the MLE loss based on logits obtained by the model.
     # hint: using the function minitorch.nn.softmax_loss
-    raise NotImplementedError("Loss Function Not Implemented Yet")
+    #import pdb
+    #pdb.set_trace()
+    loss = minitorch.nn.softmax_loss(logits.view(batch_size*seq_len, vocab_size), batch['labels'].view(batch_size*seq_len)) 
+    loss = loss.view(batch_size*seq_len) * batch['label_token_weights'].view(batch_size*seq_len)
+    return loss.mean()
     # END ASSIGN2_2
 
 
@@ -185,8 +227,8 @@ def train(model, optimizer, examples, n_samples, collate_fn, batch_size, desc):
 
     for i in (prog_bar := tqdm.trange(
             0, len(examples), batch_size, desc=f'Training ({desc})')):
-        batch = collate_fn(examples=examples[i:i + batch_size])
 
+        batch = collate_fn(examples=examples[i:i + batch_size])
         t0 = time.time()
         optimizer.zero_grad()
         loss = loss_fn(batch=batch, model=model)
@@ -277,7 +319,11 @@ def generate(model,
             # run the model with current token_ids, and predict the next token (gen_id)
             # hint: obtain the logits of next token, and take the argmax.
             gen_id = 0
-            raise NotImplementedError("Generation Function Not Implemented Yet")
+            #raise NotImplementedError("Generation Function Not Implemented Yet")
+            out = model(minitorch.tensor(token_ids, backend=backend).view(1, len(token_ids)))
+            #import pdb
+            #pdb.set_trace()
+            gen_id = int(out.to_numpy()[:,-1,:].argmax(axis=1)) #minitorch.nn.argmax(out, dim=2)
             # END ASSIGN2_2
 
             if gen_id == tokenizer.vocab[f'<eos_{tgt_key}>']:
@@ -375,7 +421,7 @@ def main(dataset_name='bbaaaa/iwslt14-de-en-preprocess',
 
     for epoch_idx in range(n_epochs):
         desc = f'epoch {epoch_idx} / {n_epochs}'
-
+        
         train(
             model=model,
             optimizer=optimizer,
@@ -384,16 +430,16 @@ def main(dataset_name='bbaaaa/iwslt14-de-en-preprocess',
             batch_size=batch_size,
             collate_fn=collate_fn,
             desc=desc)
-
+        
         validation_loss = evaluate_loss(
             model=model,
             examples=dataset['validation'],
             batch_size=batch_size,
             collate_fn=collate_fn,
             desc=desc)
-
+        
         print(f'Epoch {epoch_idx}: Validation Loss = {validation_loss}')
-
+        
         gen_sents = generate(
             model=model,
             examples=dataset['test'],

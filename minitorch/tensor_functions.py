@@ -140,7 +140,9 @@ class PowerScalar(Function):
                 Tensor containing the result of raising every element of a to scalar.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        out = a.f.pow_scalar_zip(a, scalar)
+        ctx.save_for_backward(a, scalar)
+        return out
         ### END YOUR SOLUTION
 
     @staticmethod
@@ -166,9 +168,9 @@ class PowerScalar(Function):
         grad_a    = None
         
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        out = a.f.pow_scalar_zip(a, scalar-1)
+        grad_a = scalar * out * grad_output
         ### END YOUR SOLUTION
-
         return (grad_a, 0.0)
 
 class Tanh(Function):
@@ -190,7 +192,9 @@ class Tanh(Function):
                 Tensor containing the element-wise tanh of a.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        out = a.f.tanh_map(a)
+        ctx.save_for_backward(out)
+        return out
         ### END YOUR SOLUTION
     
     @staticmethod
@@ -210,7 +214,9 @@ class Tanh(Function):
                 gradient_for_a must be the correct element-wise gradient for tanh.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        tanh = ctx.saved_values[0]
+        grad_a = ((-tanh * tanh)  + 1.0) * grad_output
+        return grad_a
         ### END YOUR SOLUTION
 
 class Sigmoid(Function):
