@@ -212,7 +212,7 @@ __global__ void MatrixMultiplyKernel(
     int p = b_shape[2];
     assert(a_shape[2] == b_shape[1]);
 
-    double res = 0;
+    float res = 0;
     for(int k = 0;k<(n+TILE-1)/TILE;k++){
         if(k * TILE + threadIdx.y < n){
             index[0] = batch;
@@ -367,7 +367,7 @@ __global__ void reduceKernel(
     int reduce_size = a_shape[reduce_dim];
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    double identity = 0;
+    float identity = 0;
     if(fn_id == MUL_FUNC)
         identity = 1;
     if(fn_id == MAX_FUNC)

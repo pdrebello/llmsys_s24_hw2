@@ -33,7 +33,6 @@ class Embedding(Module):
         self.num_embeddings = num_embeddings # Vocab size
         self.embedding_dim  = embedding_dim  # Embedding Dimension
         ### BEGIN YOUR SOLUTION
-        #self.weights = tensor_from_numpy(np.random.standard_normal((self.num_embeddings, self.embedding_dim)), backend=backend)
         self.weights = Parameter(tensor_from_numpy(np.random.standard_normal((self.num_embeddings, self.embedding_dim)), requires_grad=True, backend=backend))
         ### END YOUR SOLUTION
     
@@ -50,17 +49,8 @@ class Embedding(Module):
         ### BEGIN YOUR SOLUTION
         x = one_hot(x, self.num_embeddings)
         x = x.view(bs*seq_len, self.num_embeddings)
-        #print(self.weights.value.shape)
-        #print(self.weights.shape)
-        #print(x.shape)
-        #y = x @ self.weights
-        #print(x.shape)
-        #return (x.view(bs*seq_len, self.num_embeddings)  @ self.weights.value).view(bs, seq_len, self.embedding_dim)
         x = x @ self.weights.value
-        #import pdb
-        #pdb.set_trace()
         return (x).view(bs, seq_len, self.embedding_dim)
-                
         ### END YOUR SOLUTION
 
     
@@ -75,16 +65,24 @@ class Dropout(Module):
         self.p_dropout = p_dropout
 
     def forward(self, x: Tensor) -> Tensor: 
+        """During training, randomly zero out elements of a tensor and scale by (1 - p_dropout)
+        
+        Args: 
+            x : Tensor of shape (*)
+        
+        Returns: 
+            output : Tensor of shape (*)
+        """
+        ### BEGIN YOUR SOLUTION
         if(self.training):
-            #mask = tensor_from_numpy(np.random.binomial(1, 1-self.p_dropout, x.shape), backend=x.backend)
             mask = tensor_from_numpy(np.random.binomial(1, 1-self.p_dropout, x.shape), backend=x.backend)
             x = (x * mask) * (1.0/(1.0 - self.p_dropout))
         return x
+        ### END YOUR SOLUTION
 
 def RParam(in_size, backend, *shape):
     r = (2.0/np.sqrt(in_size)) * (rand(shape, backend=backend) - 0.5)
     r.requires_grad_(True)
-    #r = (2.0/math.sqrt(in_size)) * (rand(shape, backend=TensorBackend(CudaKernelOps)) - 0.5)
     return Parameter(r)
 
 class Linear(Module):
@@ -103,7 +101,6 @@ class Linear(Module):
         """
         self.in_size = in_size
         self.out_size = out_size
-        
         ### BEGIN YOUR SOLUTION
         self.weights = RParam(self.in_size, backend, self.in_size, self.out_size)
         self.bias = RParam(self.in_size, backend, self.out_size) if bias else None
@@ -121,7 +118,6 @@ class Linear(Module):
         batch, in_size = x.shape
         ### BEGIN YOUR SOLUTION
         x = x @ self.weights.value
-        #x = x @ self.weights
         return x if (self.bias is None) else (x + self.bias.value)
         ### END YOUR SOLUTION
 
@@ -165,6 +161,3 @@ class LayerNorm1d(Module):
         sumsq = (((x-mean)**2).mean(dim=1) + self.eps) ** 0.5
         return (self.weights.value * ((x - mean)/(sumsq))) + self.bias.value
         ### END YOUR SOLUTION
-
-
-

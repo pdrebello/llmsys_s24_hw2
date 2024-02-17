@@ -15,11 +15,9 @@ from .nn import (
     GELU,
 )
 from typing import Any, Dict, Optional, Sequence, Tuple
+
 datatype = np.float32
 
-import pdb
-def isna(tens):
-    return (np.isnan(tens.to_numpy())).any()
 
 class MultiHeadAttention(Module):
     def __init__(self, n_embd: int, n_head: int, causal: bool=True, p_dropout: float=0.1, bias: bool=True, backend: TensorBackend=None):
@@ -46,7 +44,7 @@ class MultiHeadAttention(Module):
         self.causal    = causal
         self.attn_hidden_dim = n_embd // n_head
 
-        ### BEGIN YOUR SOLUTION ###
+        ### BEGIN YOUR SOLUTION
         self.q_projection = Linear(self.n_embd, self.n_embd, bias, backend)
         self.k_projection = Linear(self.n_embd, self.n_embd, bias, backend)
         self.v_projection = Linear(self.n_embd, self.n_embd, bias, backend)
@@ -77,7 +75,6 @@ class MultiHeadAttention(Module):
         q = self.q_projection(x).view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).permute(0, 2, 1, 3) 
         kT = self.k_projection(x).view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).permute(0, 2, 3, 1) 
         v = self.v_projection(x).view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).permute(0, 2, 1, 3) 
-        
         ### END YOUR SOLUTION
         return q, kT, v
     
@@ -101,25 +98,15 @@ class MultiHeadAttention(Module):
         _, _, _, v_dim = v.shape
         assert q_dim == k_dim == v_dim
         result = None
-
+        
         ### BEGIN YOUR SOLUTION
         if(self.causal):
             M = self.create_causal_mask(queries_len)
-            #+ M
-            #if(batch_size == 128):
-            #    import pdb
-           #     pdb.set_trace()
-            
             result = softmax(((q @ kT)/np.sqrt(self.attn_hidden_dim) + M) , dim=3) @ v
         else:
             result = softmax(((q @ kT)/np.sqrt(self.attn_hidden_dim)) , dim=3) @ v
-        #import pdb
-        #pdb.set_trace()
-        #result = softmax(self.backend.matrix_multiply(q, kT)/np.sqrt(self.attn_hidden_dim) + M , dim=3)
-        #result = self.backend.matrix_multiply(result, v)
-
         ### END YOUR SOLUTION
-        
+
         return result
 
     def forward(self, x):
@@ -134,11 +121,8 @@ class MultiHeadAttention(Module):
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
         q, kT, v = self.project_to_query_key_value(x)
-
         output = self.self_attention(q, kT, v)
-
         output = output.view(batch_size, self.n_head, seq_len, self.attn_hidden_dim)
-
         output = output.permute(0, 2, 1, 3).contiguous().view(batch_size * seq_len, n_embd) #
         output = self.out_projection(output)
         return output.view(batch_size, seq_len, n_embd)
@@ -281,6 +265,7 @@ class DecoderLM(Module):
         self.dropout             = Dropout(p_dropout)
         self.ln                  = LayerNorm1d(self.n_embd, ln_eps, backend=self.backend)
         self.lm_head             = Linear(in_size=self.n_embd, out_size=self.n_vocab, bias=bias, backend=self.backend)
+
         ### END YOUR SOLUTION
     
     def forward(self, idx):
@@ -318,4 +303,3 @@ class DecoderLM(Module):
         x = self.lm_head(x).view(batch_size, seq_len, self.n_vocab)
         return x
         ### END SOLUTION
-    
