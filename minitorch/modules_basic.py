@@ -82,7 +82,7 @@ class Dropout(Module):
 
 def RParam(in_size, backend, *shape):
     r = (2.0/np.sqrt(in_size)) * (rand(shape, backend=backend) - 0.5)
-    r.requires_grad_(True)
+    #r.requires_grad_(True)
     return Parameter(r)
 
 class Linear(Module):
@@ -139,9 +139,9 @@ class LayerNorm1d(Module):
         self.eps = eps
         ### BEGIN YOUR SOLUTION
         self.weights = Parameter(ones((self.dim,), backend=backend))
-        self.weights.value.requires_grad_(True)
+        #self.weights.value.requires_grad_(True)
         self.bias = Parameter(zeros((self.dim,), backend=backend))
-        self.bias.value.requires_grad_(True)
+        #self.bias.value.requires_grad_(True)
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
